@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import Icon from '@/components/ui/icon';
 import { toast } from 'sonner';
+import Quiz from '@/components/Quiz';
 
 const CoursePage = () => {
   const { id } = useParams();
@@ -17,6 +18,8 @@ const CoursePage = () => {
   const [notes, setNotes] = useState<Record<number, string>>({});
   const [completedLessons, setCompletedLessons] = useState<number[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [quizScores, setQuizScores] = useState<Record<number, number>>({});
 
   const course = {
     id: Number(id),
@@ -66,15 +69,28 @@ const CoursePage = () => {
 
   const handleMarkComplete = () => {
     if (!completedLessons.includes(currentLessonId)) {
+      setShowQuiz(true);
+    }
+  };
+
+  const handleQuizComplete = (score: number) => {
+    setQuizScores({ ...quizScores, [currentLessonId]: score });
+    
+    if (score >= 70) {
       setCompletedLessons([...completedLessons, currentLessonId]);
-      toast.success('Урок отмечен как завершённый!');
+      toast.success('Урок успешно завершён!');
       
       const currentIndex = allLessons.findIndex(l => l.id === currentLessonId);
       if (currentIndex < allLessons.length - 1) {
         setTimeout(() => {
+          setShowQuiz(false);
           setCurrentLessonId(allLessons[currentIndex + 1].id);
         }, 1000);
+      } else {
+        setShowQuiz(false);
       }
+    } else {
+      setShowQuiz(false);
     }
   };
 
@@ -116,63 +132,75 @@ const CoursePage = () => {
       <div className="container mx-auto px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            <Card className="overflow-hidden border-2 animate-fade-in">
-              <div className="relative bg-black aspect-video">
-                <iframe
-                  className="w-full h-full"
-                  src={currentLesson?.videoUrl}
-                  title={currentLesson?.title}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-                <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="icon"
-                      variant="secondary"
-                      className="rounded-full"
-                      onClick={() => setIsPlaying(!isPlaying)}
-                    >
-                      <Icon name={isPlaying ? "Pause" : "Play"} size={20} />
-                    </Button>
-                    <span className="text-white text-sm font-medium bg-black/50 px-3 py-1 rounded-full">
-                      {currentLesson?.duration}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            <Card className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="text-2xl mb-2">{currentLesson?.title}</CardTitle>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Icon name="Clock" size={16} />
-                        <span>{currentLesson?.duration}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Icon name="Eye" size={16} />
-                        <span>1,234 просмотров</span>
-                      </div>
+            {showQuiz ? (
+              <Quiz lessonId={currentLessonId} onComplete={handleQuizComplete} />
+            ) : (
+              <Card className="overflow-hidden border-2 animate-fade-in">
+                <div className="relative bg-black aspect-video">
+                  <iframe
+                    className="w-full h-full"
+                    src={currentLesson?.videoUrl}
+                    title={currentLesson?.title}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                  <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="icon"
+                        variant="secondary"
+                        className="rounded-full"
+                        onClick={() => setIsPlaying(!isPlaying)}
+                      >
+                        <Icon name={isPlaying ? "Pause" : "Play"} size={20} />
+                      </Button>
+                      <span className="text-white text-sm font-medium bg-black/50 px-3 py-1 rounded-full">
+                        {currentLesson?.duration}
+                      </span>
                     </div>
                   </div>
-                  <Button
-                    onClick={handleMarkComplete}
-                    variant={completedLessons.includes(currentLessonId) ? "secondary" : "default"}
-                    className="ml-4"
-                  >
-                    <Icon 
-                      name={completedLessons.includes(currentLessonId) ? "CheckCircle2" : "Circle"} 
-                      size={18} 
-                      className="mr-2" 
-                    />
-                    {completedLessons.includes(currentLessonId) ? 'Завершено' : 'Отметить как завершённое'}
-                  </Button>
                 </div>
-              </CardHeader>
+              </Card>
+            )}
+
+            {!showQuiz && (
+              <Card className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="text-2xl mb-2">{currentLesson?.title}</CardTitle>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Icon name="Clock" size={16} />
+                          <span>{currentLesson?.duration}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Icon name="Eye" size={16} />
+                          <span>1,234 просмотров</span>
+                        </div>
+                        {quizScores[currentLessonId] && (
+                          <div className="flex items-center gap-1">
+                            <Icon name="Trophy" size={16} className="text-yellow-500" />
+                            <span className="font-semibold text-yellow-600">{quizScores[currentLessonId]}%</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      onClick={handleMarkComplete}
+                      variant={completedLessons.includes(currentLessonId) ? "secondary" : "default"}
+                      className="ml-4"
+                      disabled={completedLessons.includes(currentLessonId)}
+                    >
+                      <Icon 
+                        name={completedLessons.includes(currentLessonId) ? "CheckCircle2" : "Brain"} 
+                        size={18} 
+                        className="mr-2" 
+                      />
+                      {completedLessons.includes(currentLessonId) ? 'Завершено' : 'Пройти тест'}
+                    </Button>
+                  </div>
+                </CardHeader>
               <CardContent>
                 <Tabs defaultValue="description" className="space-y-4">
                   <TabsList className="grid w-full grid-cols-2">
@@ -237,7 +265,7 @@ const CoursePage = () => {
                 </Tabs>
               </CardContent>
             </Card>
-          </div>
+            )}
 
           <div className="space-y-6">
             <Card className="animate-fade-in sticky top-24" style={{ animationDelay: '0.2s' }}>
